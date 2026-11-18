@@ -259,6 +259,23 @@ function makeTextures() {
   prism(F, 0, 0, 0, 0.16, 0.2, 1.15, 6, 0x7d746a, 0.4);
   prism(F, 0, 0, 0.16, 0.36, 0.23, 0.45, 6, 0x958c7f, 0.4);
   bake('rock', F, 40, 40, 20, 30);
+  F = [];
+  const te = (sx, sy) => [sx * 0.42, sy * 0.36, 0], tr = (sx) => [sx * 0.42, 0, 0.46], to = [0, 0, 0.15], TW = 0xf4f1e8;
+  F.push({ p: [te(-1, -1), te(1, -1), tr(1), tr(-1)], c: TW, o: to });
+  F.push({ p: [te(-1, 1), te(1, 1), tr(1), tr(-1)], c: TW, o: to });
+  F.push({ p: [te(1, -1), te(1, 1), tr(1)], c: TW, o: to });
+  F.push({ p: [te(-1, -1), te(-1, 1), tr(-1)], c: TW, o: to });
+  F.push({ p: [[0.425, -0.13, 0], [0.425, 0.13, 0], [0.425, 0, 0.3]], c: 0x3a3530, o: to });
+  box(F, -0.32, -0.3, 0.4, 0.03, 0.03, 0.8, 0x8a8f96);
+  box(F, -0.2, -0.3, 0.72, 0.22, 0.01, 0.14, HELI_R);
+  const tg = S.make.graphics({}, false);
+  drawFaces(tg, F, null, 30 - OX, 44 - OY, true);
+  const cc = P(0, 0.2, 0.22);
+  tg.fillStyle(HELI_R, 1);
+  tg.fillRect(cc.x + 30 - OX - 1.5, cc.y + 44 - OY - 5, 3, 10);
+  tg.fillRect(cc.x + 30 - OX - 5, cc.y + 44 - OY - 1.5, 10, 3);
+  tg.generateTexture('tent', 60, 60);
+  tg.destroy();
 }
 
 function house(F, wc, rc) {
@@ -508,6 +525,7 @@ function clearLevel() {
   if (PEOPLE) for (const p of PEOPLE) p.g.destroy();
   if (G.terrain) G.terrain.destroy();
   if (G.miniImg) G.miniImg.destroy();
+  if (G.tent) G.tent.destroy();
   for (const k of ['terrain', 'mini']) if (S.textures.exists(k)) S.textures.remove(k);
   G.scorch.clear();
   for (const r of G.rocks) r.destroy();
@@ -531,7 +549,8 @@ function buildLevel(L, attract) {
       HV[i * (N + 1) + j] = clamp(h, -1.6, 4.2);
     }
 
-  // helipad: a flat 2x2 spot on the left side
+  // helipad: a flat 2x2 spot on the left side, kept above tsunami / mud reach
+  const wtop = 1.5 + 0.35 * G.tier;
   let best = null, bs = 1e9;
   for (let i = 3; i < 11; i++)
     for (let j = Math.floor(N * 0.42); j < Math.floor(N * 0.72); j++) {
@@ -542,18 +561,30 @@ function buildLevel(L, attract) {
           mn = Math.min(mn, h);
           mx = Math.max(mx, h);
         }
-      const sc = mx - mn + (mn < 0.35 ? 5 : 0) + (mx > 1.8 ? 3 : 0);
+      const sc = mx - mn + (mn < 0.35 ? 5 : 0) + (mx > 1.8 && G.dis !== 2 ? 3 : 0) + (G.dis === 2 ? Math.max(0, wtop - mn) * 1.5 : 0);
       if (sc < bs) {
         bs = sc;
         best = [i, j, (mn + mx) / 2];
       }
     }
-  const [pi, pj, ph] = best;
+  const [pi, pj] = best;
+  let ph = best[2];
+  const req = G.dis === 2 ? wtop + 0.45 : G.dis === 3 ? ph + 1 : ph;
+  if (req > ph) {
+    // raise a smooth hill under the pad
+    for (let i = 0; i <= N; i++)
+      for (let j = 0; j <= N; j++) {
+        const d = Math.hypot(i - pi - 1, j - pj - 0.5), k = i * (N + 1) + j;
+        const w = d < 2.5 ? 1 : d > 6 ? 0 : 1 - (d - 2.5) / 3.5;
+        HV[k] = Math.max(HV[k], HV[k] + (req - HV[k]) * w * w * (3 - 2 * w));
+      }
+    ph = req;
+  }
   for (let a = -1; a < 4; a++)
-    for (let b = -1; b < 4; b++) {
+    for (let b = -2; b < 4; b++) {
       const i = pi + a, j = pj + b;
       if (i < 0 || j < 0 || i > N || j > N) continue;
-      const w = a >= 0 && a <= 2 && b >= 0 && b <= 2 ? 1 : 0.5;
+      const w = a >= 0 && a <= 2 && b >= -1 && b <= 2 ? 1 : 0.5;
       HV[i * (N + 1) + j] += (ph - HV[i * (N + 1) + j]) * w;
     }
   G.pad = { i: pi, j: pj, x: pi + 1, y: pj + 1, z: ph };
@@ -572,6 +603,7 @@ function buildLevel(L, attract) {
   for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) TT[(pi + a) * N + pj + b] = T_PAD;
 
   OCC = new Uint8Array(N * N);
+  OCC[(pi + 1) * N + pj - 1] = 2;
   TOB = [];
   for (let t = 0; t < N * N; t++) TOB.push([]);
   FS = new Uint8Array(N * N);
@@ -655,6 +687,9 @@ function buildLevel(L, attract) {
     }
 
   drawTerrain();
+  G.door = { x: pi + 1.62, y: pj - 0.5 };
+  const tq = P(pi + 1.5, pj - 0.5, gh(pi + 1.5, pj - 0.5));
+  G.tent = S.add.image(tq.x, tq.y, 'tent').setOrigin(0.5, 44 / 60).setDepth(pi + pj + 1).setScale(1.35);
   drawMinimapBase();
 
   // people
@@ -1039,6 +1074,18 @@ function peopleStep(dt, live) {
   const h = G.h;
   for (const p of PEOPLE) {
     if (p.st === 3 || p.st === 4 || p.st === 7) continue;
+    if (p.st > 7) {
+      // rescued: walk to the field hospital, wave at the helicopter, go in
+      const dx = G.door.x - p.x, dy = G.door.y - p.y, d = Math.hypot(dx, dy);
+      p.mv = false;
+      if (p.st === 8 && d > 0.15) {
+        p.x += (dx / d) * 1.3 * dt;
+        p.y += (dy / d) * 1.3 * dt;
+        p.ph += dt * 12;
+        p.mv = true;
+      } else if ((p.st = 9) && (p.wt -= dt) < 0) p.st = 4;
+      continue;
+    }
     if (p.st === 6) {
       fallStep(p, dt);
       continue;
@@ -1274,7 +1321,7 @@ function drawPeople() {
     g.lineStyle(2, 0x2b2b3a, 1);
     g.lineBetween(x - 1, y - 6, x - 1.5 + s, y);
     g.lineBetween(x + 1, y - 6, x + 1.5 - s, y);
-    const wave = p.st === 6 || (p.st !== 2 && !h.landed && Math.hypot(h.x - p.x, h.y - p.y) < 7);
+    const wave = p.st === 6 || p.st === 9 || (p.st !== 2 && !h.landed && Math.hypot(h.x - p.x, h.y - p.y) < 7);
     g.lineStyle(1.6, p.sk, 1);
     if (wave) {
       const w = Math.sin(G.t * 14 + p.ph) * 2;
@@ -1615,8 +1662,14 @@ function update(time, delta) {
       if (h.ut <= 0) {
         h.ut = 0.3;
         const hg = G.hang.length > 0;
-        if (hg) G.hang.pop().st = 4;
-        else h.pass--;
+        const p = hg ? G.hang.pop() : PEOPLE.find((q) => q.st === 3);
+        if (!hg) h.pass--;
+        if (p) {
+          p.st = 8;
+          p.x = h.x + rnd(-0.25, 0.25);
+          p.y = h.y + rnd(-0.25, 0.25);
+          p.wt = rnd(0.9, 1.4);
+        }
         G.rescued++;
         const pts = (hg ? 150 : 100) * G.level;
         G.score += pts;
@@ -1770,7 +1823,7 @@ function setupDisaster() {
     const src = [];
     for (let k = 0; src.length < 3 + G.tier && k < 400; k++) {
       const t = tileAt(rnd(2, N - 2), rnd(2, N - 2));
-      if (TA[t] > 1.8 && TA[t] < 3.4 && !src.some((u) => Math.hypot(((u / N) | 0) - ((t / N) | 0), (u % N) - (t % N)) < 6)) src.push(t);
+      if (TA[t] > 1.8 && TA[t] < 3.4 && Math.hypot(((t / N) | 0) - G.pad.x, (t % N) - G.pad.y) > 9 && !src.some((u) => Math.hypot(((u / N) | 0) - ((t / N) | 0), (u % N) - (t % N)) < 6)) src.push(t);
     }
     G.al = { n: -1, t: 7, cnt: 3 + G.tier, inj: 0, acc: 0, rain: 0.3, src, done: false };
   }
