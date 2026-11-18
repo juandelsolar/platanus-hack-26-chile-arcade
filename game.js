@@ -361,7 +361,7 @@ function initAudio() {
 }
 
 function blip(f1, f2, dur, type, vol, delay) {
-  if (!AC) return;
+  if (!AC || G.st === 'title') return;
   const t = AC.currentTime + (delay || 0);
   const o = AC.createOscillator(), g = AC.createGain();
   o.type = type;
@@ -376,7 +376,7 @@ function blip(f1, f2, dur, type, vol, delay) {
 }
 
 function crackle(vol) {
-  if (!AC) return;
+  if (!AC || G.st === 'title') return;
   const s = AC.createBufferSource(), g = AC.createGain(), f = AC.createBiquadFilter();
   s.buffer = AU.noise;
   s.playbackRate.value = rnd(0.6, 1.6);
@@ -393,7 +393,7 @@ function crackle(vol) {
 }
 
 function noise(dur, f, vol, att) {
-  if (!AC) return;
+  if (!AC || G.st === 'title') return;
   const s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain(), t = AC.currentTime;
   s.buffer = AU.noise;
   s.loop = true;
@@ -444,7 +444,7 @@ const config = {
 };
 function create() {
   S = this;
-  G = { st: 'title', t: 0, level: 1, score: 0, top: [], prev: {}, msgT: 0, rocks: [] };
+  G = { an: -1, at: 0, st: 'title', t: 0, level: 1, score: 0, top: [], prev: {}, msgT: 0, rocks: [] };
   makeTextures();
   HELI_F = heliMesh();
   initAudio();
@@ -469,6 +469,7 @@ function create() {
       tint: [0xffc23a, 0xff7a1a, 0xff4a0a, 0xff5a14],
       blendMode: 'ADD',
       emitting: false,
+      maxAliveParticles: 420,
     })
     .setDepth(5000);
   G.smoke = S.add
@@ -480,6 +481,7 @@ function create() {
       alpha: { start: 0.3, end: 0 },
       tint: 0x3b3735,
       emitting: false,
+      maxAliveParticles: 160,
     })
     .setDepth(6000);
 
@@ -492,6 +494,7 @@ function create() {
       scale: { start: 0.35, end: 0.05 },
       alpha: { start: 0.85, end: 0 },
       emitting: false,
+      maxAliveParticles: 150,
     })
     .setDepth(5000);
   createHud();
@@ -503,8 +506,7 @@ function create() {
     })
     .catch(() => {});
 
-  buildLevel(1, true);
-  showTitle();
+  toTitle();
 }
 
 // ---------------------------------------------------------------- level generation
@@ -1083,7 +1085,11 @@ function peopleStep(dt, live) {
         p.y += (dy / d) * 1.3 * dt;
         p.ph += dt * 12;
         p.mv = true;
-      } else if ((p.st = 9) && (p.wt -= dt) < 0) p.st = 4;
+      } else if ((p.st = 9) && (p.wt -= dt) < 0) {
+        p.st = 4;
+        popup(p.x, p.y, '¡GRACIAS! ♥', '#ff6ec7');
+        blip(1200, 1600, 0.08, 'sine', 0.08);
+      }
       continue;
     }
     if (p.st === 6) {
@@ -1187,6 +1193,7 @@ function peopleStep(dt, live) {
 }
 
 function kill(p) {
+  if (G.st === 'play' && Math.hypot(p.x - G.h.x, p.y - G.h.y) < 8) S.cameras.main.shake(140, 0.004);
   p.st = 5;
   p.dt = 0;
   G.lost++;
@@ -1239,6 +1246,7 @@ function hangStep(dt) {
       p.fvx = h.vx * 0.6;
       p.fvy = h.vy * 0.6;
       SND.fall();
+      S.cameras.main.shake(200, 0.006);
       popup(p.x, p.y, '¡SE SOLTÓ!', '#ff4a1a');
     }
   }
@@ -1305,7 +1313,12 @@ function drawPeople() {
     }
     g.setVisible(true);
     g.setDepth(p.st === 6 ? 6999 : p.x + p.y + 0.3);
-    const x = q.x, y = q.y;
+    g.setPosition(q.x, q.y).setScale(1.3);
+    const x = 0, y = 0;
+    if (p.st < 3 && p.hp < 0.6) {
+      g.lineStyle(2, 0xff3030, 0.5 + 0.5 * Math.sin(G.t * 16));
+      g.strokeCircle(0, -8, 11);
+    }
     if (p.st !== 6) {
       g.fillStyle(0x000000, 0.25);
       g.fillEllipse(x, y, 9, 4);
@@ -1364,7 +1377,7 @@ function fxStep(dt) {
   if (vis && Math.random() < Math.min(0.6, vis * 0.02)) crackle(Math.min(0.12, 0.02 + vis * 0.004));
 
   // water shimmer and coastal foam
-  const rg = G.rainG, rn = G.dis === 3 && G.st !== 'title' ? G.al.rain : 0;
+  const rg = G.rainG, rn = G.dis === 3 ? G.al.rain : 0;
   rg.clear();
   if (rn > 0.05) {
     rg.fillStyle(0x0a1622, 0.34 * rn);
@@ -1437,6 +1450,14 @@ function setGroup(names, v) {
 }
 const TITLE_UI = ['ov', 'title', 'sub', 'press', 'ctrl', 'bestT'];
 const PLAY_UI = ['bar', 'lvl', 'score', 'ppl', 'g', 'mini', 'msg', 'hint', 'abordo', 'viento', 'colg'];
+
+// attract mode rotates through the four disasters
+function toTitle() {
+  G.an = (G.an + 1) % 4;
+  G.at = 0;
+  buildLevel(G.an + 1, true);
+  showTitle();
+}
 
 function refreshTitle() {
   G.U.bestT.setText(G.top.length ? 'MEJORES RESCATISTAS\n' + G.top.map((e, i) => i + 1 + '. ' + e.n + '  ' + String(e.s).padStart(7) + '  NIVEL ' + e.l).join('\n') : '');
@@ -1625,6 +1646,7 @@ function update(time, delta) {
     ix = clamp((dx - dy) / d, -1, 1) * 0.7;
     iy = clamp((dx + dy) / d, -1, 1) * 0.7;
     G.U.press.setAlpha(0.55 + 0.45 * Math.sin(G.t * 5));
+    if ((G.at += dt) > 40) toTitle();
     if (pr('START1') || pr('P1_1')) startGame();
   } else if (G.st === 'play') {
     ix = (held.P1_R ? 1 : 0) - (held.P1_L ? 1 : 0);
@@ -1640,10 +1662,7 @@ function update(time, delta) {
   } else if (G.st === 'over') {
     G.overT += dt;
     G.U.press.setAlpha(0.55 + 0.45 * Math.sin(G.t * 5));
-    if (G.overT > 1.5 && (pr('START1') || pr('P1_1'))) {
-      buildLevel(1, true);
-      showTitle();
-    }
+    if ((G.overT > 1.5 && (pr('START1') || pr('P1_1'))) || G.overT > 15) toTitle();
   }
 
   if (G.st !== 'sum') {
@@ -1659,6 +1678,13 @@ function update(time, delta) {
     // unloading at the helipad
     hangStep(dt);
     if ((h.landed || h.z - h.gz < 0.9) && onPad(h) && (h.pass > 0 || G.hang.length)) {
+      if (!h.unl && h.pass >= CAP) {
+        const b = (G.hang.length === HANG ? 1000 : 500) * G.level;
+        G.score += b;
+        msg((G.hang.length === HANG ? '¡CARGA COMPLETA! +' : '¡HELICÓPTERO LLENO! +') + b, 0xe1ff00);
+        SND.level();
+      }
+      h.unl = 1;
       h.ut -= dt;
       if (h.ut <= 0) {
         h.ut = 0.3;
@@ -1678,6 +1704,7 @@ function update(time, delta) {
         popup(h.x, h.y, '+' + pts, '#e1ff00');
       }
     }
+    if (!onPad(h)) h.unl = 0;
     // contextual hints
     const ground = PEOPLE.filter((p) => p.st < 3 || p.st === 6).length;
     const load = h.pass + G.hang.length;
@@ -1759,6 +1786,7 @@ function gameOver() {
     G.st = 'name';
     G.nm = [0, 0, 0];
     G.nc = 0;
+    G.nmL = G.t;
     G.U.title.setText('¡NUEVO RÉCORD!');
     G.U.bestT.setText('JOYSTICK ARRIBA / ABAJO: LETRA     BOTÓN 1: SIGUIENTE');
     showName();
@@ -1774,7 +1802,8 @@ function nameStep(pr) {
   if (pr('P1_D')) G.nm[G.nc] = (G.nm[G.nc] + 25) % 26;
   if (pr('P1_L')) G.nc = Math.max(0, G.nc - 1);
   if (pr('P1_R')) G.nc = Math.min(2, G.nc + 1);
-  if (pr('P1_1') || pr('START1')) {
+  if (['P1_U', 'P1_D', 'P1_L', 'P1_R', 'P1_1', 'START1'].some((k) => held[k])) G.nmL = G.t;
+  if (pr('P1_1') || pr('START1') || G.t - G.nmL > 30) {
     if (G.nc < 2) G.nc++;
     else {
       G.top.push({ n: G.nm.map((c) => String.fromCharCode(65 + c)).join(''), s: G.score, l: G.level });
@@ -1826,7 +1855,7 @@ function setupDisaster() {
       const t = tileAt(rnd(2, N - 2), rnd(2, N - 2));
       if (TA[t] > 1.8 && TA[t] < 3.4 && Math.hypot(((t / N) | 0) - G.pad.x, (t % N) - G.pad.y) > 9 && !src.some((u) => Math.hypot(((u / N) | 0) - ((t / N) | 0), (u % N) - (t % N)) < 6)) src.push(t);
     }
-    G.al = { n: -1, t: 7, cnt: 3 + G.tier, inj: 0, acc: 0, rain: 0.3, src, done: false };
+    G.al = { n: -1, t: 7, cnt: 4 + G.tier, inj: 0, acc: 0, rain: 0.3, src, done: false };
   }
 }
 
@@ -1836,10 +1865,7 @@ function tsunamiStep(dt) {
   const T = G.ts;
   if (T.done) return;
   T.t -= dt;
-  if (T.t < 3 && !T.warn && T.n + 1 < T.cnt) {
-    T.warn = true;
-    msg('¡VIENE UNA OLA!', 0x6fd3ff, 2.8);
-  }
+  if (T.t < 4 && T.n + 1 < T.cnt) msg('¡OLA EN ' + Math.ceil(T.t) + '!', 0x6fd3ff, 0.6);
   if (T.t <= 0) {
     if (T.n + 1 < T.cnt) {
       T.n++;
@@ -1989,10 +2015,7 @@ function mudStep(dt) {
   if (A.done) return;
   A.t -= dt;
   const more = A.n + 1 < A.cnt;
-  if (A.t < 4 && !A.warn && more) {
-    A.warn = true;
-    msg('¡LLUVIA INTENSA! SE VIENE UN ALUVIÓN', 0xc8a070, 3);
-  }
+  if (A.t < 4 && more) msg('¡ALUVIÓN EN ' + Math.ceil(A.t) + '!', 0xc8a070, 0.6);
   if (A.t <= 0 && more) {
     A.n++;
     A.t = Math.max(9, 14 - G.tier);
@@ -2013,7 +2036,7 @@ function mudStep(dt) {
 function flowStep(A) {
   if (A.inj > 0) {
     A.inj -= 0.1;
-    for (const t of A.src) MUD[t] += 0.24 * (1 + 0.2 * G.tier);
+    for (const t of A.src) MUD[t] += 0.3 * (1 + 0.2 * G.tier);
   }
   const NM = Float32Array.from(MUD);
   for (let t = 0; t < N * N; t++) {
