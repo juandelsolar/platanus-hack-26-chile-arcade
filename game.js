@@ -1,4 +1,4 @@
-// RESCATE AUSTRAL — Platanus Hack 26
+// ANDES RESCUE — Platanus Hack 26
 // Pseudo-3D isometric rescue game. Everything (terrain, trees, houses, helicopter,
 // people, fire) is computed at runtime: no images, no models.
 
@@ -68,7 +68,7 @@ function getStorage() {
     },
   };
 }
-const TOP_KEY = 'rescate-austral:top';
+const TOP_KEY = 'andes-rescue:top';
 const DIS = ['TERREMOTO', 'INCENDIO FORESTAL', 'TSUNAMI', 'ALUVIÓN'];
 const TIP = ['Sismos: casas que colapsan, rocas que caen e incendios', 'El fuego avanza con el viento', 'Las olas suben cada vez más alto: ¡apúrate!', 'Lluvia intensa: el barro baja por las quebradas'];
 
@@ -1423,7 +1423,7 @@ function createHud() {
   U.ban = txt(SW / 2, 200, '', 34, '#e1ff00', 0.5);
   U.ban2 = txt(SW / 2, 248, '', 16, '#ffffff', 0.5);
   U.ov = S.add.rectangle(0, 0, SW, SH, 0x050a10, 0.55).setOrigin(0, 0).setScrollFactor(0).setDepth(10000);
-  U.title = txt(SW / 2, 120, 'RESCATE AUSTRAL', 56, '#e1ff00', 0.5).setStroke('#06101a', 8);
+  U.title = txt(SW / 2, 120, 'ANDES RESCUE', 56, '#e1ff00', 0.5).setStroke('#06101a', 8);
   U.sub = txt(SW / 2, 192, 'Rescata a los habitantes antes de que la catástrofe los alcance', 15, '#ffffff', 0.5);
   U.press = txt(SW / 2, 330, 'PRESIONA START', 26, '#ff6ec7', 0.5);
   U.ctrl = txt(SW / 2, 380, 'JOYSTICK: VOLAR    BOTÓN 1: SUBIR    BOTÓN 2: BAJAR\nAterriza cerca de la gente. Con la cabina llena, vuela bajo y se colgarán.\nLlévalos al helipuerto (H) sin que se suelten.', 13, '#b8c48d', 0.5).setAlign('center');
@@ -1445,7 +1445,7 @@ function showTitle() {
   setGroup(PLAY_UI, false);
   setGroup(TITLE_UI, true);
   setGroup(['ban', 'ban2', 'sumL'], false);
-  G.U.title.setText('RESCATE AUSTRAL');
+  G.U.title.setText('ANDES RESCUE');
   G.U.sub.setText('Rescata a los habitantes antes de que la catástrofe los alcance');
   G.U.press.setText('PRESIONA START');
   G.U.ctrl.setVisible(true);
