@@ -1,5 +1,5 @@
 {
-  "game_name": "Platanus Hack: Santiago Brick Breaker",
-  "description": "Batalla campal por romper la mayor cantidad de ladrillos",
-  "player_mode": "two_player"
+  "game_name": "Rescate Austral",
+  "description": "Pilotea un helicóptero de rescate en un mundo 3D isométrico generado 100% por código. Salva a los habitantes de incendios forestales, tsunamis y terremotos; cuando la cabina se llena, los demás se cuelgan de los patines... si no se sueltan en el camino.",
+  "player_mode": "single_player"
 }
