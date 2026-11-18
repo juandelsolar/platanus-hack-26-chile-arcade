@@ -953,7 +953,7 @@ function heliStep(dt, ix, iy, up, down) {
     if (h.alt < minA && !ok && G.t > h.dn && G.st === 'play') {
       h.dn = G.t + 2.5;
       SND.deny();
-      msg(h.pass >= CAP ? 'VUELA BAJO: LA GENTE SE COLGARÁ DE LOS PATINES' : '¡NO SE PUEDE ATERRIZAR AQUÍ!', 0xff6ec7);
+      msg(h.pass >= CAP ? 'VUELA BAJO: LA GENTE SE COLGARÁ DE LOS PATINES' : 'NO SE PUEDE ATERRIZAR: SOLO SE COLGARÁN LOS QUE ESTÉN EN PELIGRO', 0xff6ec7);
     }
   }
   h.alt = Math.max(h.alt, minA);
@@ -1110,7 +1110,8 @@ function peopleStep(dt, live) {
     }
     let vx = 0, vy = 0, sp = 0;
     const dh = Math.hypot(h.x - p.x, h.y - p.y);
-    const canHang = G.hang.length < HANG && h.pass >= CAP;
+    // with room in the cabin, only desperate people (danger nearby) grab the skids
+    const canHang = G.hang.length < HANG && (h.pass >= CAP || !!p.fire);
     const low = !h.landed && h.z - h.gz < 1.25;
     if (((h.landed && (h.pass < CAP || canHang)) || (low && canHang)) && dh < 7 && !onPad(h)) {
       p.st = 2;
@@ -1426,7 +1427,7 @@ function createHud() {
   U.title = txt(SW / 2, 120, 'ANDES RESCUE', 56, '#e1ff00', 0.5).setStroke('#06101a', 8);
   U.sub = txt(SW / 2, 192, 'Rescata a los habitantes antes de que la catástrofe los alcance', 15, '#ffffff', 0.5);
   U.press = txt(SW / 2, 330, 'PRESIONA START', 26, '#ff6ec7', 0.5);
-  U.ctrl = txt(SW / 2, 380, 'JOYSTICK: VOLAR    BOTÓN 1: SUBIR    BOTÓN 2: BAJAR\nAterriza cerca de la gente. Con la cabina llena, vuela bajo y se colgarán.\nLlévalos al helipuerto (H) sin que se suelten.', 13, '#b8c48d', 0.5).setAlign('center');
+  U.ctrl = txt(SW / 2, 380, 'JOYSTICK: VOLAR    BOTÓN 1: SUBIR    BOTÓN 2: BAJAR\nAterriza cerca de la gente. Si vuelas bajo, los que estén en peligro se colgarán.\nLlévalos al helipuerto (H) sin que se suelten.', 13, '#b8c48d', 0.5).setAlign('center');
   U.bestT = txt(SW / 2, 456, '', 13, '#ffffff', 0.5).setAlign('center');
   U.sumL = txt(SW / 2, 290, '', 16, '#ffffff', 0.5).setAlign('center');
 }
